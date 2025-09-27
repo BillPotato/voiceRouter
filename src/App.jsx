@@ -126,7 +126,8 @@ const ContactCard = ({ icon, title, description, color, buttonText = "Get in Tou
     const formData = new FormData();
     formData.append('audio', audioBlob, 'recording.wav');
     try {
-      const res = await fetch('http://localhost:5000/api/speech-to-text', {
+      const speechUrl = import.meta.env.VITE_SPEECH_URL || 'http://localhost:5000/api/speech-to-text';
+      const res = await fetch(speechUrl, {
         method: 'POST',
         body: formData,
       });
@@ -135,7 +136,8 @@ const ContactCard = ({ icon, title, description, color, buttonText = "Get in Tou
       setTranscript(newTranscript);
       // POST transcript to classifier backend
       try {
-        const clsRes = await fetch('http://localhost:8080/classify', {
+        const classifyUrl = import.meta.env.VITE_CLASSIFY_URL || 'http://localhost:8080/classify';
+        const clsRes = await fetch(classifyUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: newTranscript }),
