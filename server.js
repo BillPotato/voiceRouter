@@ -5,6 +5,9 @@ import cors from 'cors';
 import fs from 'fs';
 import vosk from 'vosk';
 const { Model, Recognizer } = vosk;
+import cors from 'cors';
+
+app.use(cors());
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
