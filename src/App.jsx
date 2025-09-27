@@ -88,6 +88,7 @@ const ContactCard = ({ icon, title, description, color, buttonText = "Get in Tou
   const [recording, setRecording] = React.useState(false);
   const [audioURL, setAudioURL] = React.useState(null);
   const [transcript, setTranscript] = React.useState('');
+  const [classification, setClassification] = React.useState(null);
   const mediaRecorderRef = React.useRef(null);
   const audioChunksRef = React.useRef([]);
 
@@ -130,7 +131,21 @@ const ContactCard = ({ icon, title, description, color, buttonText = "Get in Tou
         body: formData,
       });
       const data = await res.json();
-      setTranscript(data.transcript || 'No transcript received.');
+      const newTranscript = data.transcript || 'No transcript received.';
+      setTranscript(newTranscript);
+      // POST transcript to classifier backend
+      try {
+        const clsRes = await fetch('http://localhost:8080/classify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: newTranscript }),
+        });
+        const clsJson = await clsRes.json();
+        // expected { department, confidence, matches }
+        setClassification(clsJson);
+      } catch (err) {
+        setClassification({ error: 'Failed to reach classifier: ' + err.message });
+      }
     } catch (err) {
       setTranscript('Error: ' + err.message);
     }
@@ -210,6 +225,25 @@ const ContactCard = ({ icon, title, description, color, buttonText = "Get in Tou
             <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded w-full text-center">
               <strong>Transcript:</strong>
               <div className="mt-2">{transcript}</div>
+            </div>
+          )}
+          {classification && (
+            <div className="mt-4 w-full">
+              {/* Big notification box */}
+              {classification.error ? (
+                <div className="p-6 rounded-lg bg-red-100 text-red-800 text-center font-semibold">
+                  {classification.error}
+                </div>
+              ) : (
+                <div className="p-6 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-900 dark:text-indigo-100 text-center">
+                  <div className="text-sm text-gray-600 dark:text-gray-300">Directed to</div>
+                  <div className="text-2xl font-bold mt-2">{classification.department}</div>
+                  <div className="text-sm mt-1">Confidence: {classification.confidence ?? 'n/a'}</div>
+                  {classification.matches && classification.matches.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">Matches: {classification.matches.join(', ')}</div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
