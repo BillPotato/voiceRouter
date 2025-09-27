@@ -34,32 +34,64 @@ const GeneralIcon = () => (
   </svg>
 );
 
+const AiIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8 text-indigo-500">
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+        <path d="m12 17 0 .01"/>
+        <path d="M21 12a9 9 0 1 1-9-9" />
+        <path d="M12 3v1" />
+        <path d="M12 20v1" />
+        <path d="m4.93 4.93 1 1" />
+        <path d="m18.07 18.07 1 1" />
+        <path d="m3 12 1 0" />
+        <path d="m20 12 1 0" />
+        <path d="m4.93 19.07 1-1" />
+        <path d="m18.07 5.93 1-1" />
+    </svg>
+);
+
 
 // Card component to display department info
-const ContactCard = ({ icon, title, description, color }) => {
-  const colorClasses = {
-    blue: 'border-blue-500/50 hover:border-blue-500',
-    green: 'border-green-500/50 hover:border-green-500',
-    purple: 'border-purple-500/50 hover:border-purple-500',
-    yellow: 'border-yellow-500/50 hover:border-yellow-500',
+const ContactCard = ({ icon, title, description, color, buttonText = "Get in Touch" }) => {
+  const cardStyles = {
+    blue: {
+      border: 'border-blue-500/50 hover:border-blue-500',
+      button: 'bg-blue-500 hover:bg-blue-600',
+      focus: 'focus:ring-blue-400',
+    },
+    green: {
+      border: 'border-green-500/50 hover:border-green-500',
+      button: 'bg-green-500 hover:bg-green-600',
+      focus: 'focus:ring-green-400',
+    },
+    purple: {
+      border: 'border-purple-500/50 hover:border-purple-500',
+      button: 'bg-purple-500 hover:bg-purple-600',
+      focus: 'focus:ring-purple-400',
+    },
+    yellow: {
+      border: 'border-yellow-500/50 hover:border-yellow-500',
+      button: 'bg-yellow-500 hover:bg-yellow-600',
+      focus: 'focus:ring-yellow-400',
+    },
+    indigo: {
+      border: 'border-indigo-500/50 hover:border-indigo-500',
+      button: 'bg-indigo-500 hover:bg-indigo-600',
+      focus: 'focus:ring-indigo-400',
+    },
   };
 
-  const buttonClasses = {
-    blue: 'bg-blue-500 hover:bg-blue-600',
-    green: 'bg-green-500 hover:bg-green-600',
-    purple: 'bg-purple-500 hover:bg-purple-600',
-    yellow: 'bg-yellow-500 hover:bg-yellow-600',
-  };
+  const styles = cardStyles[color] || cardStyles.blue; // Fallback to blue
 
   return (
-    <div className={`bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm p-8 rounded-2xl shadow-lg border-2 ${colorClasses[color]} transition-all duration-300 transform hover:-translate-y-1`}>
+    <div className={`bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm p-8 rounded-2xl shadow-lg border-2 ${styles.border} transition-all duration-300 transform hover:-translate-y-1`}>
       <div className="flex items-center justify-center h-16 w-16 mb-6 rounded-full bg-gray-100 dark:bg-gray-900 mx-auto">
         {icon}
       </div>
       <h3 className="text-2xl font-bold text-center text-gray-800 dark:text-white mb-3">{title}</h3>
       <p className="text-gray-600 dark:text-gray-300 text-center mb-6 h-12">{description}</p>
-      <button className={`w-full py-3 px-6 rounded-lg text-white font-semibold ${buttonClasses[color]} transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-opacity-50 ${'focus:ring-' + color + '-400'}`}>
-        Get in Touch
+      <button className={`w-full py-3 px-6 rounded-lg text-white font-semibold ${styles.button} transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-opacity-50 ${styles.focus}`}>
+        {buttonText}
       </button>
     </div>
   );
@@ -80,6 +112,13 @@ function App() {
       color: 'green'
     },
     {
+      icon: <AiIcon />,
+      title: "Not Sure?",
+      description: "Let our AI assistant guide you to the right department.",
+      color: 'indigo',
+      buttonText: 'Ask AI Assistant'
+    },
+    {
       icon: <BillingIcon />,
       title: "Billing & Payments",
       description: "Manage your subscription, invoices, and payment details.",
@@ -90,17 +129,18 @@ function App() {
       title: "General Inquiry",
       description: "For all other questions and general information.",
       color: 'yellow'
-    }
+    },
+    
   ];
 
   return (
-    <div className="min-h-screen w-full bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans p-4 sm:p-6 lg:p-8">
-       {/* Background gradient shapes */}
+    <div className="min-h-screen w-full bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans p-4 sm:p-6 lg:p-8 flex items-center justify-center">
+        {/* Background gradient shapes */}
       <div className="absolute top-0 left-0 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob dark:opacity-30"></div>
       <div className="absolute top-0 right-0 w-72 h-72 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000 dark:opacity-30"></div>
       <div className="absolute bottom-20 left-20 w-72 h-72 bg-green-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000 dark:opacity-30"></div>
       
-      <div className="container mx-auto max-w-6xl relative">
+      <div className="container mx-auto max-w-7xl relative">
         <header className="text-center mb-12 md:mb-16">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-gray-900 dark:text-white">
             How can we help you?
@@ -110,7 +150,7 @@ function App() {
           </p>
         </header>
 
-        <main className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <main className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
           {departments.map((dept, index) => (
             <ContactCard
               key={index}
@@ -118,6 +158,7 @@ function App() {
               title={dept.title}
               description={dept.description}
               color={dept.color}
+              buttonText={dept.buttonText}
             />
           ))}
         </main>
@@ -131,4 +172,3 @@ function App() {
 }
 
 export default App;
-
