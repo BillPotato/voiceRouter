@@ -83,6 +83,140 @@ const ContactCard = ({ icon, title, description, color, buttonText = "Get in Tou
 
   const styles = cardStyles[color] || cardStyles.blue; // Fallback to blue
 
+  // Speech-to-text modal state
+  const [showModal, setShowModal] = React.useState(false);
+  const [recording, setRecording] = React.useState(false);
+  const [audioURL, setAudioURL] = React.useState(null);
+  const [transcript, setTranscript] = React.useState('');
+  const mediaRecorderRef = React.useRef(null);
+  const audioChunksRef = React.useRef([]);
+
+  // Start recording
+  const startRecording = async () => {
+    setTranscript('');
+    setAudioURL(null);
+    setRecording(true);
+    audioChunksRef.current = [];
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorderRef.current = new window.MediaRecorder(stream, { mimeType: 'audio/webm' });
+    mediaRecorderRef.current.ondataavailable = (e) => {
+      audioChunksRef.current.push(e.data);
+    };
+    mediaRecorderRef.current.onstop = async () => {
+      const webmBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      setAudioURL(URL.createObjectURL(webmBlob));
+      // Convert webm to WAV 16kHz mono
+      const wavBlob = await convertWebmToWav(webmBlob);
+      sendAudioToBackend(wavBlob);
+    };
+    mediaRecorderRef.current.start();
+  };
+
+  // Stop recording
+  const stopRecording = () => {
+    setRecording(false);
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  // Send audio to backend
+  const sendAudioToBackend = async (audioBlob) => {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.wav');
+    try {
+      const res = await fetch('http://localhost:5000/api/speech-to-text', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      setTranscript(data.transcript || 'No transcript received.');
+    } catch (err) {
+      setTranscript('Error: ' + err.message);
+    }
+  };
+
+  // Convert webm to WAV 16kHz mono using Web Audio API
+  const convertWebmToWav = async (webmBlob) => {
+    const arrayBuffer = await webmBlob.arrayBuffer();
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    // Convert to mono
+    const monoBuffer = audioCtx.createBuffer(1, audioBuffer.length, 16000);
+    monoBuffer.getChannelData(0).set(audioBuffer.getChannelData(0));
+    // Encode WAV
+    const wavBuffer = encodeWAV(monoBuffer);
+    return new Blob([wavBuffer], { type: 'audio/wav' });
+  };
+
+  // WAV encoding helper
+  function encodeWAV(audioBuffer) {
+    const numChannels = 1;
+    const sampleRate = audioBuffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+    const samples = audioBuffer.getChannelData(0);
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+
+    // RIFF chunk descriptor
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + samples.length * 2, true);
+    writeString(view, 8, 'WAVE');
+    // FMT sub-chunk
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); // Subchunk1Size
+    view.setUint16(20, format, true); // AudioFormat
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numChannels * bitDepth / 8, true);
+    view.setUint16(32, numChannels * bitDepth / 8, true);
+    view.setUint16(34, bitDepth, true);
+    // Data sub-chunk
+    writeString(view, 36, 'data');
+    view.setUint32(40, samples.length * 2, true);
+    // Write PCM samples
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++, offset += 2) {
+      let s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+    return buffer;
+  }
+
+  function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+
+  // Modal for speech-to-text
+  const SpeechModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-xl w-full max-w-md relative">
+        <button className="absolute top-2 right-2 text-gray-500" onClick={() => setShowModal(false)}>&times;</button>
+        <h2 className="text-xl font-bold mb-4">Speak your question</h2>
+        <div className="flex flex-col items-center">
+          {!recording && (
+            <button className="mb-4 px-6 py-2 bg-indigo-500 text-white rounded-lg" onClick={startRecording}>Start Recording</button>
+          )}
+          {recording && (
+            <button className="mb-4 px-6 py-2 bg-red-500 text-white rounded-lg" onClick={stopRecording}>Stop Recording</button>
+          )}
+          {audioURL && (
+            <audio controls src={audioURL} className="mb-4" />
+          )}
+          {transcript && (
+            <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded w-full text-center">
+              <strong>Transcript:</strong>
+              <div className="mt-2">{transcript}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className={`bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm p-8 rounded-2xl shadow-lg border-2 ${styles.border} transition-all duration-300 transform hover:-translate-y-1`}>
       <div className="flex items-center justify-center h-16 w-16 mb-6 rounded-full bg-gray-100 dark:bg-gray-900 mx-auto">
@@ -90,12 +224,26 @@ const ContactCard = ({ icon, title, description, color, buttonText = "Get in Tou
       </div>
       <h3 className="text-2xl font-bold text-center text-gray-800 dark:text-white mb-3">{title}</h3>
       <p className="text-gray-600 dark:text-gray-300 text-center mb-6 h-12">{description}</p>
-      <button className={`w-full py-3 px-6 rounded-lg text-white font-semibold ${styles.button} transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-opacity-50 ${styles.focus}`}>
-        {buttonText}
-      </button>
+      {color === 'indigo' ? (
+        <>
+          <button
+            className={`w-full py-3 px-6 rounded-lg text-white font-semibold ${styles.button} transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-opacity-50 ${styles.focus}`}
+            onClick={() => setShowModal(true)}
+          >
+            {buttonText}
+          </button>
+          {showModal && <SpeechModal />}
+        </>
+      ) : (
+        <button
+          className={`w-full py-3 px-6 rounded-lg text-white font-semibold ${styles.button} transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-opacity-50 ${styles.focus}`}
+        >
+          {buttonText}
+        </button>
+      )}
     </div>
   );
-};
+}
 
 function App() {
   const departments = [
