@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import {
   Dialog,
@@ -9,49 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-interface SpeechRecognitionAlternativeLite {
-  transcript: string;
-}
-
-interface SpeechRecognitionResultLite {
-  0: SpeechRecognitionAlternativeLite;
-  isFinal: boolean;
-}
-
-interface SpeechRecognitionResultListLite {
-  length: number;
-  [index: number]: SpeechRecognitionResultLite;
-}
-
-interface SpeechRecognitionResultEventLite extends Event {
-  results: SpeechRecognitionResultListLite;
-}
-
-interface SpeechRecognitionErrorEventLite extends Event {
-  error: string;
-}
-
-interface BrowserSpeechRecognition {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onstart: (() => void) | null;
-  onresult: ((event: SpeechRecognitionResultEventLite) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEventLite) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-}
-
-type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
-
-interface ClassificationResponse {
-  department?: string;
-  confidence?: number;
-  matches?: string[];
-  error?: string;
-}
+import { useClassifier } from "@/hooks/useClassifier";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 interface SpeechModalProps {
   open: boolean;
@@ -59,95 +18,38 @@ interface SpeechModalProps {
 }
 
 export function SpeechModal({ open, onOpenChange }: SpeechModalProps) {
-  const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [classification, setClassification] = useState<ClassificationResponse | null>(null);
-  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const [typedInput, setTypedInput] = useState("");
+  const { isLoading, error, classification, classifyText, resetClassification } = useClassifier();
 
-  const initSpeechRecognition = (): BrowserSpeechRecognition | null => {
-    const speechWindow = window as Window & {
-      SpeechRecognition?: BrowserSpeechRecognitionConstructor;
-      webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
-    };
+  const handleFinalTranscript = useCallback(
+    (finalTranscript: string) => {
+      void classifyText(finalTranscript);
+    },
+    [classifyText],
+  );
 
-    const SpeechRecognitionImpl = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+  const {
+    isSupported,
+    transcript,
+    isListening,
+    startRecording,
+    stopRecording,
+    resetTranscript,
+  } = useSpeechRecognition(handleFinalTranscript);
 
-    if (!SpeechRecognitionImpl) {
-      setTranscript("Speech recognition is not supported in this browser.");
-      return null;
-    }
-
-    const recognition = new SpeechRecognitionImpl();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      setTranscript("Listening...");
-    };
-
-    recognition.onresult = async (event: SpeechRecognitionResultEventLite) => {
-      const transcriptText = Array.from({ length: event.results.length }, (_, index) => {
-        return event.results[index][0].transcript;
-      }).join("");
-
-      setTranscript(transcriptText);
-
-      const firstResult = event.results[0];
-      if (!firstResult?.isFinal) {
-        return;
-      }
-
-      try {
-        const classifyUrl = process.env.NEXT_PUBLIC_CLASSIFY_URL ?? "http://localhost:8080/classify";
-        const clsRes = await fetch(classifyUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: transcriptText }),
-        });
-
-        const clsJson = (await clsRes.json()) as ClassificationResponse;
-        setClassification(clsJson);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        setClassification({ error: `Failed to reach classifier: ${message}` });
-      }
-    };
-
-    recognition.onerror = (event: SpeechRecognitionErrorEventLite) => {
-      setIsListening(false);
-      setTranscript(`Error: ${event.error}`);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    return recognition;
-  };
-
-  const startRecording = () => {
-    setTranscript("");
-    setClassification(null);
-
-    if (!recognitionRef.current) {
-      recognitionRef.current = initSpeechRecognition();
-    }
-
-    recognitionRef.current?.start();
-  };
-
-  const stopRecording = () => {
-    recognitionRef.current?.stop();
+  const handleTypedSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await classifyText(typedInput);
   };
 
   useEffect(() => {
     if (!open) {
-      setIsListening(false);
-      recognitionRef.current?.stop();
+      stopRecording();
+      resetTranscript();
+      resetClassification();
+      setTypedInput("");
     }
-  }, [open]);
+  }, [open, resetClassification, resetTranscript, stopRecording]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -160,22 +62,28 @@ export function SpeechModal({ open, onOpenChange }: SpeechModalProps) {
         </DialogHeader>
 
         <div className="mt-4 flex flex-col items-center">
-          {!isListening ? (
-            <button
-              type="button"
-              className="mb-4 rounded-lg bg-indigo-500 px-6 py-2 font-semibold text-white transition-colors hover:bg-indigo-600"
-              onClick={startRecording}
-            >
-              Start Listening
-            </button>
+          {isSupported ? (
+            !isListening ? (
+              <button
+                type="button"
+                className="mb-4 rounded-lg bg-indigo-500 px-6 py-2 font-semibold text-white transition-colors hover:bg-indigo-600"
+                onClick={startRecording}
+              >
+                Start Listening
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="mb-4 rounded-lg bg-red-500 px-6 py-2 font-semibold text-white transition-colors hover:bg-red-600"
+                onClick={stopRecording}
+              >
+                Stop Listening
+              </button>
+            )
           ) : (
-            <button
-              type="button"
-              className="mb-4 rounded-lg bg-red-500 px-6 py-2 font-semibold text-white transition-colors hover:bg-red-600"
-              onClick={stopRecording}
-            >
-              Stop Listening
-            </button>
+            <div className="mb-4 w-full rounded bg-yellow-100 p-3 text-sm text-yellow-900">
+              Microphone capture is unavailable in this browser. Use the text field below.
+            </div>
           )}
 
           {transcript ? (
@@ -183,6 +91,30 @@ export function SpeechModal({ open, onOpenChange }: SpeechModalProps) {
               <strong>Transcript:</strong>
               <div className="mt-2">{transcript}</div>
             </div>
+          ) : null}
+
+          <form className="mt-4 w-full" onSubmit={handleTypedSubmit}>
+            <label className="mb-2 block text-sm font-semibold text-gray-700" htmlFor="fallback-input">
+              Type your question
+            </label>
+            <textarea
+              id="fallback-input"
+              value={typedInput}
+              onChange={(event) => setTypedInput(event.target.value)}
+              className="min-h-24 w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              placeholder="Example: I was charged twice and need help with my invoice."
+            />
+            <button
+              type="submit"
+              className="mt-3 w-full rounded-lg bg-indigo-500 px-4 py-2 font-semibold text-white transition-colors hover:bg-indigo-600 disabled:pointer-events-none disabled:opacity-60"
+              disabled={isLoading}
+            >
+              {isLoading ? "Classifying..." : "Submit"}
+            </button>
+          </form>
+
+          {error ? (
+            <div className="mt-3 w-full rounded-lg bg-red-100 p-3 text-sm text-red-800">{error}</div>
           ) : null}
 
           {classification ? (
