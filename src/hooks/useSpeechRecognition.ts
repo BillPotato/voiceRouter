@@ -47,6 +47,7 @@ interface UseSpeechRecognitionResult {
   isSupported: boolean;
   transcript: string;
   isListening: boolean;
+  error: string | null;
   startRecording: () => void;
   stopRecording: () => void;
   resetTranscript: () => void;
@@ -58,6 +59,7 @@ export function useSpeechRecognition(
   const [isSupported, setIsSupported] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [isListening, setIsListening] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
 
   useEffect(() => {
@@ -111,8 +113,15 @@ export function useSpeechRecognition(
       }
     };
 
-    recognition.onerror = () => {
+    recognition.onerror = (event: SpeechRecognitionErrorEventLite) => {
       setIsListening(false);
+
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setError("Microphone permission was denied.");
+        return;
+      }
+
+      setError(`Microphone error: ${event.error}`);
     };
 
     recognition.onend = () => {
@@ -126,9 +135,11 @@ export function useSpeechRecognition(
   const startRecording = useCallback(() => {
     const recognition = ensureRecognition();
     if (!recognition) {
+      setError("Speech recognition is unsupported in this browser.");
       return;
     }
 
+    setError(null);
     setTranscript("");
     recognition.start();
   }, [ensureRecognition]);
@@ -139,6 +150,7 @@ export function useSpeechRecognition(
 
   const resetTranscript = useCallback(() => {
     setTranscript("");
+    setError(null);
   }, []);
 
   useEffect(() => {
@@ -151,6 +163,7 @@ export function useSpeechRecognition(
     isSupported,
     transcript,
     isListening,
+    error,
     startRecording,
     stopRecording,
     resetTranscript,

@@ -1,10 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 
 import type { ContactCardProps, DepartmentColor } from "@/types";
 import { SpeechModal } from "@/components/SpeechModal";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 type StyleTokens = {
   border: string;
@@ -50,6 +57,7 @@ export function ContactCard({
 }: ContactCardProps) {
   const styles = cardStyles[color];
   const [showModal, setShowModal] = useState(false);
+  const emailLocalPart = path.replace(/^\//, "") || "contact";
 
   return (
     <div
@@ -73,12 +81,36 @@ export function ContactCard({
           <SpeechModal open={showModal} onOpenChange={setShowModal} />
         </>
       ) : (
-        <Link
-          href={path}
-          className={`block w-full rounded-lg px-6 py-3 text-center font-semibold text-white transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-opacity-50 ${styles.button} ${styles.focus}`}
-        >
-          {buttonText}
-        </Link>
+        <Dialog>
+          <DialogTrigger asChild>
+            <button
+              type="button"
+              className={`block w-full rounded-lg px-6 py-3 text-center font-semibold text-white transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-opacity-50 ${styles.button} ${styles.focus}`}
+            >
+              {buttonText}
+            </button>
+          </DialogTrigger>
+          <DialogContent className="w-[calc(100vw-2rem)] max-w-md">
+            <DialogHeader>
+              <DialogTitle>{title}</DialogTitle>
+              <DialogDescription>
+                Contact details for this department are shown below.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-2 rounded-lg border border-gray-200 bg-white/80 p-4 text-sm text-gray-800">
+              <div className="font-semibold">Mock Contact Information</div>
+              <div className="mt-1">Phone: 1-800-555-0199</div>
+              <div>Email: {emailLocalPart}@company.com</div>
+            </div>
+
+            <div className="rounded-md bg-gray-100 p-3 text-xs italic text-gray-700">
+              Proof of Concept: In a production environment, this would trigger a custom
+              routing action, such as an automatic redirect to a live agent or a
+              department-specific form.
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

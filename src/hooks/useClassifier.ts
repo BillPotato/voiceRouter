@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 
 export interface ClassificationResponse {
   department?: string;
-  confidence?: number;
+  confidence?: string | number;
   matches?: string[];
   error?: string;
 }
@@ -12,6 +12,7 @@ export interface ClassificationResponse {
 interface UseClassifierResult {
   isLoading: boolean;
   error: string | null;
+  errorSource: "input" | "api" | null;
   classification: ClassificationResponse | null;
   classifyText: (text: string) => Promise<ClassificationResponse | null>;
   resetClassification: () => void;
@@ -20,17 +21,20 @@ interface UseClassifierResult {
 export function useClassifier(): UseClassifierResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorSource, setErrorSource] = useState<"input" | "api" | null>(null);
   const [classification, setClassification] = useState<ClassificationResponse | null>(null);
 
   const classifyText = useCallback(async (text: string): Promise<ClassificationResponse | null> => {
     const trimmedText = text.trim();
     if (!trimmedText) {
       setError("Please enter or record a question before submitting.");
+      setErrorSource("input");
       return null;
     }
 
     setIsLoading(true);
     setError(null);
+    setErrorSource(null);
 
     try {
       const response = await fetch("/api/classify", {
@@ -45,6 +49,7 @@ export function useClassifier(): UseClassifierResult {
         const message = payload.error ?? "Classification request failed.";
         setClassification({ error: message });
         setError(message);
+        setErrorSource("api");
         return null;
       }
 
@@ -55,6 +60,7 @@ export function useClassifier(): UseClassifierResult {
         requestError instanceof Error ? requestError.message : "Unexpected classification error.";
       setClassification({ error: message });
       setError(message);
+      setErrorSource("api");
       return null;
     } finally {
       setIsLoading(false);
@@ -64,11 +70,13 @@ export function useClassifier(): UseClassifierResult {
   const resetClassification = useCallback(() => {
     setClassification(null);
     setError(null);
+    setErrorSource(null);
   }, []);
 
   return {
     isLoading,
     error,
+    errorSource,
     classification,
     classifyText,
     resetClassification,

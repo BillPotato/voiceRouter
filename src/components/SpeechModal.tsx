@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 import { useClassifier } from "@/hooks/useClassifier";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
@@ -17,9 +18,30 @@ interface SpeechModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const departmentContacts: Record<string, { phone: string; email: string }> = {
+  Sales: {
+    phone: "+1 (555) 010-1001",
+    email: "sales@voicerouter.example",
+  },
+  "Technical Support": {
+    phone: "+1 (555) 010-2002",
+    email: "support@voicerouter.example",
+  },
+  "Billing & Payments": {
+    phone: "+1 (555) 010-3003",
+    email: "billing@voicerouter.example",
+  },
+  "General Inquiry": {
+    phone: "+1 (555) 010-4004",
+    email: "hello@voicerouter.example",
+  },
+};
+
 export function SpeechModal({ open, onOpenChange }: SpeechModalProps) {
   const [typedInput, setTypedInput] = useState("");
-  const { isLoading, error, classification, classifyText, resetClassification } = useClassifier();
+  const { toast } = useToast();
+  const { isLoading, error, errorSource, classification, classifyText, resetClassification } =
+    useClassifier();
 
   const handleFinalTranscript = useCallback(
     (finalTranscript: string) => {
@@ -32,6 +54,7 @@ export function SpeechModal({ open, onOpenChange }: SpeechModalProps) {
     isSupported,
     transcript,
     isListening,
+    error: speechError,
     startRecording,
     stopRecording,
     resetTranscript,
@@ -50,6 +73,49 @@ export function SpeechModal({ open, onOpenChange }: SpeechModalProps) {
       setTypedInput("");
     }
   }, [open, resetClassification, resetTranscript, stopRecording]);
+
+  useEffect(() => {
+    if (!open || isSupported) {
+      return;
+    }
+
+    toast({
+      variant: "destructive",
+      title: "Microphone unsupported",
+      description: "This browser does not support speech recognition. Use text input instead.",
+    });
+  }, [isSupported, open, toast]);
+
+  useEffect(() => {
+    if (!open || !speechError) {
+      return;
+    }
+
+    const title = speechError.includes("permission")
+      ? "Microphone permission denied"
+      : "Microphone unavailable";
+
+    toast({
+      variant: "destructive",
+      title,
+      description: speechError,
+    });
+  }, [open, speechError, toast]);
+
+  useEffect(() => {
+    if (!open || !error || errorSource !== "api") {
+      return;
+    }
+
+    toast({
+      variant: "destructive",
+      title: "Routing request failed",
+      description: error,
+    });
+  }, [error, errorSource, open, toast]);
+
+  const department = classification?.department;
+  const contactInfo = department ? departmentContacts[department] : undefined;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -131,6 +197,19 @@ export function SpeechModal({ open, onOpenChange }: SpeechModalProps) {
                   {classification.matches && classification.matches.length > 0 ? (
                     <div className="mt-2 text-xs text-gray-600">
                       Matches: {classification.matches.join(", ")}
+                    </div>
+                  ) : null}
+
+                  {contactInfo ? (
+                    <div className="mt-4 rounded-lg border border-indigo-200 bg-white/70 p-4 text-left text-indigo-900">
+                      <div className="text-sm font-semibold">Mock Contact Information</div>
+                      <div className="mt-1 text-sm">Phone: {contactInfo.phone}</div>
+                      <div className="text-sm">Email: {contactInfo.email}</div>
+                      <div className="mt-3 rounded-md bg-gray-100 p-3 text-xs italic text-gray-700">
+                        Proof of Concept: In a production environment, this would trigger a custom
+                        routing action, such as an automatic redirect to a live agent or a
+                        department-specific form.
+                      </div>
                     </div>
                   ) : null}
                 </div>
