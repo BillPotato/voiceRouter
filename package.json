@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "jest"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -24,11 +25,16 @@
   "devDependencies": {
     "@tailwindcss/oxide-linux-x64-gnu": "^4.2.2",
     "@tailwindcss/postcss": "^4.1.13",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/jest": "^30.0.0",
     "@types/node": "^25.5.0",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "eslint": "^9.36.0",
     "eslint-config-next": "^15.5.14",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.9",
     "typescript": "^5.9.3"
   }
 }

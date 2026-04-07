@@ -1,6 +1,6 @@
 # 🎙️ VoiceRouter 
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-View_Project-emerald?style=for-the-badge)](https://voicerouter.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-View_Project-emerald?style=for-the-badge)](https://voicerouter.vercel.app) [![Tests](https://img.shields.io/github/actions/workflow/status/BillPotato/voiceRouter/test.yml?branch=main&style=for-the-badge&label=Tests)](https://github.com/BillPotato/voiceRouter/actions/workflows/test.yml)
 
 ![Dashboard Screenshot](./public/screenshot1.png)
 
